@@ -131,7 +131,20 @@ class Button:
     def handle_event(self, event: pygame.event.Event) -> bool:
         return event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 and self.rect.collidepoint(event.pos)
 
-    def draw(self, surface: pygame.Surface, font: pygame.font.Font, theme: Theme) -> None:
+    def draw(
+        self,
+        surface: pygame.Surface,
+        font: pygame.font.Font,
+        small_font_or_theme=None,
+        maybe_theme: Theme | None = None,
+    ) -> None:
+        if isinstance(small_font_or_theme, Theme):
+            theme = small_font_or_theme
+        elif maybe_theme is not None:
+            theme = maybe_theme
+        else:
+            theme = Theme()
+
         bg = theme.accent if self.active else theme.control_bg
         fg = (25, 25, 25) if self.active else theme.text
         pygame.draw.rect(surface, bg, self.rect, border_radius=8)
