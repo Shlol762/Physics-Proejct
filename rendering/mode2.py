@@ -34,7 +34,6 @@ uniform float u_amplitudes[MAX_SOURCES];
 uniform float u_phases[MAX_SOURCES];
 uniform float u_wavelength;
 uniform float u_time;
-uniform vec2 u_resolution;
 uniform vec4 u_viewport;
 uniform vec2 u_world_center;
 uniform float u_px_per_m;
@@ -152,7 +151,6 @@ class Mode2Renderer:
         self.field_prog["u_source_count"].value = count
         self.field_prog["u_wavelength"].value = float(max(wavelength_m, 1e-9))
         self.field_prog["u_time"].value = float(time_s)
-        self.field_prog["u_resolution"].value = (float(self.width), float(self.height))
         view = axis.viewport
         view_bottom = float(self.height - (view.y + view.height))
         self.field_prog["u_viewport"].value = (
@@ -165,10 +163,18 @@ class Mode2Renderer:
         self.field_prog["u_px_per_m"].value = float(axis.px_per_meter)
         self.field_prog["u_alpha"].value = float(max(0.0, min(1.0, alpha)))
 
+        # GLSL uniform arrays require fixed-size payloads on many drivers.
+        src_buf = np.zeros((MAX_SOURCES, 2), dtype="f4")
+        amp_buf = np.zeros(MAX_SOURCES, dtype="f4")
+        phase_buf = np.zeros(MAX_SOURCES, dtype="f4")
         if count > 0:
-            self.field_prog["u_sources"].write(pos.astype("f4").tobytes())
-            self.field_prog["u_amplitudes"].write(amp.astype("f4").tobytes())
-            self.field_prog["u_phases"].write(phase.astype("f4").tobytes())
+            src_buf[:count] = pos.astype("f4")
+            amp_buf[:count] = amp.astype("f4")
+            phase_buf[:count] = phase.astype("f4")
+
+        self.field_prog["u_sources"].write(src_buf.tobytes())
+        self.field_prog["u_amplitudes"].write(amp_buf.tobytes())
+        self.field_prog["u_phases"].write(phase_buf.tobytes())
 
         self.field_vao.render(moderngl.TRIANGLES)
 
