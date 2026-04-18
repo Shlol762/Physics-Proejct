@@ -22,8 +22,6 @@ export interface SimulationControls {
   thetaIncidence: number;
   wavelength: number;
   slitWidth: number;
-  slitCount: number;
-  slitSeparation: number;
   phaseDelay: number;
   arraySpacing: number;
   elementCount: number;

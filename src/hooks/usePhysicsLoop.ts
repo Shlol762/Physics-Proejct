@@ -6,16 +6,11 @@ interface UsePhysicsLoopOptions {
   onFrame: (time: number, dt: number) => void;
 }
 
-interface UsePhysicsLoopResult {
-  timeRef: React.MutableRefObject<number>;
-  resetTime: () => void;
-}
-
 export const usePhysicsLoop = ({
   isPlaying,
   simSpeed,
   onFrame
-}: UsePhysicsLoopOptions): UsePhysicsLoopResult => {
+}: UsePhysicsLoopOptions): { resetTime: () => void } => {
   const rafRef = useRef<number | null>(null);
   const lastRef = useRef<number>(performance.now());
   const timeRef = useRef<number>(0);
@@ -63,5 +58,5 @@ export const usePhysicsLoop = ({
     lastRef.current = performance.now();
   }, []);
 
-  return { timeRef, resetTime };
+  return { resetTime };
 };

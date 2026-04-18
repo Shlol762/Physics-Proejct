@@ -199,13 +199,6 @@ input[type="range"] {
   opacity: 1;
 }
 
-.canvas-hint {
-  margin: 0;
-  font-family: "IBM Plex Mono", monospace;
-  font-size: 0.78rem;
-  color: var(--ink-soft);
-}
-
 .hud-row {
   display: flex;
   justify-content: space-between;

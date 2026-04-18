@@ -1,7 +1,6 @@
 import {
   C_UM_PER_FS,
   PX_PER_UM,
-  TAB_LABELS,
   TWO_PI
 } from "../constants";
 import {
@@ -25,10 +24,8 @@ interface PanelRenderParams {
 
 const FONT = '14px "IBM Plex Mono", monospace';
 
-const buildBaseHud = (tab: TabId, mode: RenderMode, controls: SimulationControls): HudLine[] => {
+const buildBaseHud = (controls: SimulationControls): HudLine[] => {
   return [
-    { label: "Panel", value: TAB_LABELS[tab] },
-    { label: "Mode", value: mode === "huygens" ? "Huygens (Canvas)" : "Field (WebGL)" },
     { label: "Wavelength", value: `${controls.wavelength.toFixed(2)} um` }
   ];
 };
@@ -576,14 +573,6 @@ const drawBoundaryWave = (
   };
 };
 
-const slitCenters = (count: number, centerY: number, separationPx: number): number[] => {
-  const out: number[] = [];
-  for (let i = 0; i < count; i += 1) {
-    out.push(centerY + (i - (count - 1) / 2) * separationPx);
-  }
-  return out;
-};
-
 const drawDiffraction = (
   ctx: CanvasRenderingContext2D,
   width: number,
@@ -596,30 +585,25 @@ const drawDiffraction = (
   const vPx = C_UM_PER_FS * PX_PER_UM;
   const period = controls.wavelength / C_UM_PER_FS;
   const slitWidthPx = controls.slitWidth * PX_PER_UM;
-  const count = 1;
-  const centers = slitCenters(count, height / 2, 0);
   const maxRadius = Math.hypot(width, height) + 30;
 
-  const slits = centers
-    .map((center) => ({ y0: center - slitWidthPx / 2, y1: center + slitWidthPx / 2 }))
-    .sort((a, b) => a.y0 - b.y0);
+  const slit = {
+    y0: height / 2 - slitWidthPx / 2,
+    y1: height / 2 + slitWidthPx / 2
+  };
 
   ctx.fillStyle = "#6b7280";
   const barrierW = 18;
-  let yCursor = 0;
-  for (const slit of slits) {
-    if (slit.y0 > yCursor) {
-      ctx.fillRect(barrierX - barrierW / 2, yCursor, barrierW, slit.y0 - yCursor);
-    }
-    yCursor = slit.y1;
+  if (slit.y0 > 0) {
+    ctx.fillRect(barrierX - barrierW / 2, 0, barrierW, slit.y0);
   }
-  if (yCursor < height) {
-    ctx.fillRect(barrierX - barrierW / 2, yCursor, barrierW, height - yCursor);
+  if (slit.y1 < height) {
+    ctx.fillRect(barrierX - barrierW / 2, slit.y1, barrierW, height - slit.y1);
   }
 
   ctx.strokeStyle = "#b91c1c";
   ctx.lineWidth = 1.2;
-  const labelY = slits[0]?.y0 ?? height / 2;
+  const labelY = slit.y0;
   ctx.beginPath();
   ctx.moveTo(barrierX - 30, labelY);
   ctx.lineTo(barrierX - 30, labelY + slitWidthPx);
@@ -649,49 +633,47 @@ const drawDiffraction = (
 
   ctx.lineWidth = 1;
 
-  for (const slit of slits) {
-    for (let i = 0; i < perSlitSourceCount; i += 1) {
-      const t = perSlitSourceCount === 1 ? 0.5 : i / (perSlitSourceCount - 1);
-      const y = slit.y0 + t * (slit.y1 - slit.y0);
+  for (let i = 0; i < perSlitSourceCount; i += 1) {
+    const t = perSlitSourceCount === 1 ? 0.5 : i / (perSlitSourceCount - 1);
+    const y = slit.y0 + t * (slit.y1 - slit.y0);
 
-      sources.push({
-        x: barrierX,
-        y,
-        amplitude: 1 / (count * perSlitSourceCount),
-        phase: 0
-      });
+    sources.push({
+      x: barrierX,
+      y,
+      amplitude: 1 / perSlitSourceCount,
+      phase: 0
+    });
 
-      for (let emissionIndex = firstEmissionIndex; emissionIndex <= lastEmissionIndex; emissionIndex += 1) {
-        const emissionTime = emissionIndex * period;
-        const radius = (time - emissionTime) * vPx;
-        if (radius <= 0 || radius > maxRadius) {
-          continue;
-        }
-
-        const edgeFade = Math.max(0, Math.min(1, (maxRadius - radius) / Math.max(maxRadius, 1e-6)));
-        if (edgeFade <= 0.01) {
-          continue;
-        }
-
-        ctx.save();
-        ctx.globalAlpha = edgeFade;
-        ctx.strokeStyle = "#db2777";
-        ctx.beginPath();
-        ctx.arc(barrierX, y, radius, -Math.PI / 2, Math.PI / 2);
-        ctx.stroke();
-        ctx.restore();
+    for (let emissionIndex = firstEmissionIndex; emissionIndex <= lastEmissionIndex; emissionIndex += 1) {
+      const emissionTime = emissionIndex * period;
+      const radius = (time - emissionTime) * vPx;
+      if (radius <= 0 || radius > maxRadius) {
+        continue;
       }
 
-      ctx.fillStyle = "#f59e0b";
+      const edgeFade = Math.max(0, Math.min(1, (maxRadius - radius) / Math.max(maxRadius, 1e-6)));
+      if (edgeFade <= 0.01) {
+        continue;
+      }
+
+      ctx.save();
+      ctx.globalAlpha = edgeFade;
+      ctx.strokeStyle = "#db2777";
       ctx.beginPath();
-      ctx.arc(barrierX, y, 3, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.arc(barrierX, y, radius, -Math.PI / 2, Math.PI / 2);
+      ctx.stroke();
+      ctx.restore();
     }
+
+    ctx.fillStyle = "#f59e0b";
+    ctx.beginPath();
+    ctx.arc(barrierX, y, 3, 0, Math.PI * 2);
+    ctx.fill();
   }
 
-  if (slits.length > 0 && perSlitSourceCount > 1) {
-    const top = slits[0].y0;
-    const bottom = slits[slits.length - 1].y1;
+  if (perSlitSourceCount > 1) {
+    const top = slit.y0;
+    const bottom = slit.y1;
 
     for (let emissionIndex = firstEmissionIndex; emissionIndex <= lastEmissionIndex; emissionIndex += 1) {
       const emissionTime = emissionIndex * period;
@@ -766,9 +748,9 @@ const drawDiffraction = (
     sources,
     barrierX,
     hudLines: [
-      { label: "Slit count N", value: `${count}` },
+      { label: "Slit count N", value: "1" },
       { label: "Sources/slit", value: `${perSlitSourceCount}` },
-      { label: "Total sources", value: `${count * perSlitSourceCount}` }
+      { label: "Total sources", value: `${perSlitSourceCount}` }
     ]
   };
 };
@@ -901,7 +883,7 @@ export const renderPanelFrame = (params: PanelRenderParams): PanelFrameOutput =>
 
   clearScene(ctx, width, height);
 
-  const base = buildBaseHud(tab, mode, controls);
+  const base = buildBaseHud(controls);
   let output: PanelFrameOutput;
 
   if (tab === "intro") {
