@@ -81,101 +81,149 @@ const drawIntro = (
   const cy = height * 0.5;
   const speedPxPerFs = C_UM_PER_FS * PX_PER_UM;
 
-  // One full demo cycle has two phases:
-  // (1) primary front expansion for constructionDtFs
-  // (2) secondary wavelet phase + tangent envelope for constructionDtFs
-  const constructionDtFs = Math.max(0.75, periodFromWavelength(controls.wavelength) * 0.9);
-  const primaryEmissionPeriodFs = constructionDtFs * 2;
-
-  const cycleTimeFs = time % primaryEmissionPeriodFs;
-  const inWaveletPhase = cycleTimeFs >= constructionDtFs;
-  const phaseTimeFs = inWaveletPhase ? cycleTimeFs - constructionDtFs : cycleTimeFs;
-  const phaseAlpha = Math.min(1, Math.max(0, phaseTimeFs / constructionDtFs));
-
-  const secondarySeedRadius = speedPxPerFs * constructionDtFs;
-  const primaryRadiusPx = inWaveletPhase ? secondarySeedRadius : speedPxPerFs * phaseTimeFs;
-  const waveletRadiusPx = inWaveletPhase ? speedPxPerFs * phaseTimeFs : 0;
-
+  const deltaTFs = Math.max(0.75, periodFromWavelength(controls.wavelength) * 0.9);
+  const emissionPeriodFs = deltaTFs * 2;
   const secondaryCount = 10;
-  const secondarySources: Array<{ x: number; y: number; angle: number }> = [];
-  if (inWaveletPhase) {
-    for (let i = 0; i < secondaryCount; i += 1) {
-      const angle = (i / secondaryCount) * TWO_PI;
-      secondarySources.push({
-        x: cx + secondarySeedRadius * Math.cos(angle),
-        y: cy + secondarySeedRadius * Math.sin(angle),
-        angle
-      });
+
+  const maxRadiusToEdge = Math.hypot(Math.max(cx, width - cx), Math.max(cy, height - cy));
+  const cullMarginPx = 30;
+  const maxVisibleChainAgeFs = (maxRadiusToEdge + cullMarginPx) / speedPxPerFs;
+
+  const lastEmissionIndex = Math.max(0, Math.floor(time / emissionPeriodFs));
+  const firstEmissionIndex = Math.max(0, Math.ceil((time - maxVisibleChainAgeFs) / emissionPeriodFs));
+
+  const sources: WaveSource[] = [{ x: cx, y: cy, amplitude: 1, phase: 0 }];
+
+  let activeChains = 0;
+  let leadingRadiusPx = 0;
+
+  for (let emissionIndex = firstEmissionIndex; emissionIndex <= lastEmissionIndex; emissionIndex += 1) {
+    const emissionTime = emissionIndex * emissionPeriodFs;
+    const chainAgeFs = time - emissionTime;
+    if (chainAgeFs < 0) {
+      continue;
     }
+
+    const chainFrontRadiusPx = chainAgeFs * speedPxPerFs;
+    if (chainFrontRadiusPx > maxRadiusToEdge + cullMarginPx) {
+      continue;
+    }
+
+    activeChains += 1;
+    leadingRadiusPx = Math.max(leadingRadiusPx, chainFrontRadiusPx);
+
+    const generationIndex = Math.floor(chainAgeFs / emissionPeriodFs);
+    const generationStartFs = generationIndex * emissionPeriodFs;
+    const localTimeFs = chainAgeFs - generationStartFs;
+    const baseRadiusPx = generationStartFs * speedPxPerFs;
+    const seedRadiusPx = baseRadiusPx + speedPxPerFs * deltaTFs;
+
+    const edgeFade = Math.max(0, Math.min(1, (maxRadiusToEdge + cullMarginPx - chainFrontRadiusPx) / 110));
+
+    if (localTimeFs <= deltaTFs) {
+      const primaryRadiusPx = baseRadiusPx + speedPxPerFs * localTimeFs;
+
+      ctx.save();
+      ctx.strokeStyle = "#1d4ed8";
+      ctx.lineWidth = 2.1;
+      ctx.globalAlpha = 0.92 * edgeFade;
+      ctx.beginPath();
+      ctx.arc(cx, cy, primaryRadiusPx, 0, TWO_PI);
+      ctx.stroke();
+      ctx.restore();
+
+      continue;
+    }
+
+    const waveletTimeFs = localTimeFs - deltaTFs;
+    const waveletRadiusPx = speedPxPerFs * waveletTimeFs;
+    const envelopeRadiusPx = seedRadiusPx + waveletRadiusPx;
+    const waveletProgress = Math.max(0, Math.min(1, waveletTimeFs / deltaTFs));
+
+    const spawningFrontAlpha = (1 - waveletProgress) * 0.88 * edgeFade;
+    const waveletAlpha = (1 - waveletProgress) * 0.82 * edgeFade;
+    const envelopeAlpha = (0.38 + 0.58 * waveletProgress) * edgeFade;
+
+    if (spawningFrontAlpha > 0.015) {
+      ctx.save();
+      ctx.strokeStyle = "#1d4ed8";
+      ctx.lineWidth = 2;
+      ctx.globalAlpha = spawningFrontAlpha;
+      ctx.beginPath();
+      ctx.arc(cx, cy, seedRadiusPx, 0, TWO_PI);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    if (waveletAlpha > 0.015) {
+      ctx.save();
+      ctx.strokeStyle = "#db2777";
+      ctx.lineWidth = 1.4;
+      ctx.globalAlpha = waveletAlpha;
+
+      for (let i = 0; i < secondaryCount; i += 1) {
+        const angle = (i / secondaryCount) * TWO_PI;
+        const sx = cx + seedRadiusPx * Math.cos(angle);
+        const sy = cy + seedRadiusPx * Math.sin(angle);
+
+        ctx.beginPath();
+        ctx.arc(sx, sy, waveletRadiusPx, angle - Math.PI * 0.5, angle + Math.PI * 0.5);
+        ctx.stroke();
+
+        ctx.fillStyle = "#f59e0b";
+        ctx.globalAlpha = waveletAlpha * 0.92;
+        ctx.beginPath();
+        ctx.arc(sx, sy, 2.6, 0, TWO_PI);
+        ctx.fill();
+        ctx.globalAlpha = waveletAlpha;
+      }
+
+      ctx.restore();
+    }
+
+    ctx.save();
+    ctx.strokeStyle = "#15803d";
+    ctx.lineWidth = 2.8;
+    ctx.globalAlpha = envelopeAlpha;
+    ctx.beginPath();
+    ctx.arc(cx, cy, envelopeRadiusPx, 0, TWO_PI);
+    ctx.stroke();
+    ctx.restore();
   }
 
-  // Primary source marker
+  const emissionProgress = (time % emissionPeriodFs) / emissionPeriodFs;
+  const sourcePulseAlpha = Math.max(0, Math.min(1, 1 - emissionProgress * 2.6));
+  if (sourcePulseAlpha > 0.02) {
+    const pulseRadius = 6 + emissionProgress * speedPxPerFs * deltaTFs * 0.36;
+    ctx.save();
+    ctx.strokeStyle = "#f59e0b";
+    ctx.lineWidth = 1.6;
+    ctx.globalAlpha = sourcePulseAlpha * 0.55;
+    ctx.beginPath();
+    ctx.arc(cx, cy, pulseRadius, 0, TWO_PI);
+    ctx.stroke();
+    ctx.restore();
+  }
+
   ctx.fillStyle = "#d97706";
   ctx.beginPath();
   ctx.arc(cx, cy, 6, 0, TWO_PI);
   ctx.fill();
 
-  // Primary wavefront (or frozen construction front in phase 2)
-  ctx.strokeStyle = "#1d4ed8";
-  ctx.lineWidth = 2.1;
-  ctx.globalAlpha = inWaveletPhase ? 0.4 : 0.95;
-  ctx.beginPath();
-  ctx.arc(cx, cy, primaryRadiusPx, 0, TWO_PI);
-  ctx.stroke();
-  ctx.globalAlpha = 1;
-
-  if (inWaveletPhase) {
-    // Secondary sources sampled along the frozen primary front
-    ctx.fillStyle = "#f59e0b";
-    for (const secondary of secondarySources) {
-      ctx.beginPath();
-      ctx.arc(secondary.x, secondary.y, 3, 0, TWO_PI);
-      ctx.fill();
-    }
-
-    // Outward half-circular wavelets from each secondary source
-    ctx.strokeStyle = "#db2777";
-    ctx.lineWidth = 1.4;
-    for (const secondary of secondarySources) {
-      const startAngle = secondary.angle - Math.PI * 0.5;
-      const endAngle = secondary.angle + Math.PI * 0.5;
-      ctx.beginPath();
-      ctx.arc(secondary.x, secondary.y, waveletRadiusPx, startAngle, endAngle);
-      ctx.stroke();
-    }
-
-    // Tangent envelope: the new advancing primary front formed by wavelet outer edges
-    const envelopeRadiusPx = secondarySeedRadius + waveletRadiusPx;
-    ctx.strokeStyle = "#15803d";
-    ctx.lineWidth = 2.8;
-    ctx.beginPath();
-    ctx.arc(cx, cy, envelopeRadiusPx, 0, TWO_PI);
-    ctx.stroke();
-  }
-
   ctx.fillStyle = "#0f172a";
   ctx.font = FONT;
-  ctx.fillText("Huygens animation: primary front -> secondary wavelets -> tangent envelope", 20, 30);
-  ctx.fillText(
-    inWaveletPhase
-      ? "Phase 2: secondary wavelets and envelope progression"
-      : "Phase 1: primary wavefront expansion",
-    20,
-    52
-  );
+  ctx.fillText("Continuous Huygens propagation: each front expands, spawns wavelets, and hands off to envelope.", 20, 30);
+  ctx.fillText("Central source emits every 2Dt; older fronts fade at the boundary.", 20, 52);
 
   return {
-    sources: [{ x: cx, y: cy, amplitude: 1, phase: 0 }],
+    sources,
     hudLines: [
-      {
-        label: "Stage",
-        value: inWaveletPhase ? "Secondary wavelets + envelope" : "Primary front expansion"
-      },
-      { label: "construction Dt", value: `${constructionDtFs.toFixed(2)} fs` },
-      { label: "Secondary sources", value: `${secondaryCount}` },
-      { label: "Primary radius", value: `${primaryRadiusPx.toFixed(1)} px` },
-      { label: "Wavelet radius", value: `${waveletRadiusPx.toFixed(1)} px` },
-      { label: "Progress", value: `${(phaseAlpha * 100).toFixed(0)}%` }
+      { label: "Model", value: "Continuous Huygens chain" },
+      { label: "Dt", value: `${deltaTFs.toFixed(2)} fs` },
+      { label: "Emission period", value: `${emissionPeriodFs.toFixed(2)} fs` },
+      { label: "Secondary sources/front", value: `${secondaryCount}` },
+      { label: "Active chains", value: `${activeChains}` },
+      { label: "Leading radius", value: `${leadingRadiusPx.toFixed(1)} px` }
     ]
   };
 };
