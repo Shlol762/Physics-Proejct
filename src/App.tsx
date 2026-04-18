@@ -18,12 +18,19 @@ const defaultControls: SimulationControls = {
   thetaIncidence: 30,
   wavelength: 0.8,
   slitWidth: 2,
-  slitCount: 2,
-  slitSeparation: 2,
+  slitCount: 1,
+  slitSeparation: 3,
   phaseDelay: 1.2,
   arraySpacing: 0.8,
   elementCount: 7,
   simSpeed: 1
+};
+
+const enforceDiffractionConstraints = (controls: SimulationControls): SimulationControls => {
+  return {
+    ...controls,
+    slitCount: 1
+  };
 };
 
 const defaultHud: HudSnapshot = {
@@ -53,7 +60,10 @@ export default function App() {
   }, [activeTab, modeByTab]);
 
   const updateControl = <K extends keyof SimulationControls>(key: K, value: number): void => {
-    setControls((previous) => ({ ...previous, [key]: value }));
+    setControls((previous) => {
+      const next = { ...previous, [key]: value };
+      return enforceDiffractionConstraints(next);
+    });
   };
 
   const handleTabChange = (tab: TabId): void => {

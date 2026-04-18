@@ -189,25 +189,6 @@ export const Sidebar = ({
               suffix=" um"
               onChange={(value) => onControlChange("slitWidth", value)}
             />
-            <SliderRow
-              id="slitCount"
-              label="Slit Count N"
-              value={controls.slitCount}
-              min={1}
-              max={6}
-              step={1}
-              onChange={(value) => onControlChange("slitCount", Math.round(value))}
-            />
-            <SliderRow
-              id="slitSeparation"
-              label="Separation d"
-              value={controls.slitSeparation}
-              min={0.6}
-              max={6}
-              step={0.1}
-              suffix=" um"
-              onChange={(value) => onControlChange("slitSeparation", value)}
-            />
           </>
         )}
 

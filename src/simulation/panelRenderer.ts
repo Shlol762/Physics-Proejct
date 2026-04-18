@@ -546,9 +546,8 @@ const drawDiffraction = (
   const barrierX = Math.round(width * 0.32);
   const vPx = C_UM_PER_FS * PX_PER_UM;
   const slitWidthPx = controls.slitWidth * PX_PER_UM;
-  const separationPx = controls.slitSeparation * PX_PER_UM;
-  const count = Math.max(1, Math.floor(controls.slitCount));
-  const centers = slitCenters(count, height / 2, separationPx);
+  const count = 1;
+  const centers = slitCenters(count, height / 2, 0);
 
   const slits = centers
     .map((center) => ({ y0: center - slitWidthPx / 2, y1: center + slitWidthPx / 2 }))
@@ -650,7 +649,6 @@ const drawDiffraction = (
     sources,
     hudLines: [
       { label: "Slit count N", value: `${count}` },
-      { label: "Separation d", value: `${controls.slitSeparation.toFixed(2)} um` },
       { label: "Sources/slit", value: `${perSlitSourceCount}` },
       { label: "Total sources", value: `${count * perSlitSourceCount}` }
     ]
