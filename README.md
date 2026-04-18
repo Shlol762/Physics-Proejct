@@ -2,6 +2,8 @@
 
 This is our group project. We built an interactive wave optics simulator in React + TypeScript to make Huygens' principle easier to understand visually.
 
+#### Click [here](https://shlol762.github.io/Physics-Proejct/) to experience the simulator.
+
 ## GenAI Use Disclosure
 
 A simulation that looks this clean and runs this smoothly could not have been feasibly acheived in a short time. As we wanted to deliver on the visual experience and intuition-building aspect, we used GenAI as a development assistant while building this project.
