@@ -38,6 +38,7 @@ export interface HudLine {
 export interface PanelFrameOutput {
   sources: WaveSource[];
   hudLines: HudLine[];
+  barrierX?: number;
   warning?: string;
 }
 

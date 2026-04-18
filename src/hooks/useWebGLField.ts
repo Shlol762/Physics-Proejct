@@ -25,6 +25,7 @@ uniform float uSourceY[MAX_SOURCES];
 uniform float uAmplitude[MAX_SOURCES];
 uniform float uPhase[MAX_SOURCES];
 uniform float uNormalization;
+uniform float uBarrierX;
 
 out vec4 outColor;
 
@@ -34,14 +35,45 @@ void main() {
   float k = 6.28318530718 / max(uWavelength, 1e-4);
   float wt = 6.28318530718 * (uTime / max(uPeriod, 1e-4));
 
-  float A = 0.0;
+  float slitYMin = 1e20;
+  float slitYMax = -1e20;
   for (int i = 0; i < MAX_SOURCES; i++) {
     if (i >= uSourceCount) {
       break;
     }
-    vec2 d = p - vec2(uSourceX[i], uSourceY[i]);
-    float r = length(d);
-    A += uAmplitude[i] * cos(k * r - wt + uPhase[i]);
+    if (abs(uSourceX[i] - uBarrierX) <= 1.0) {
+      slitYMin = min(slitYMin, uSourceY[i]);
+      slitYMax = max(slitYMax, uSourceY[i]);
+    }
+  }
+
+  bool hasAperture = slitYMax >= slitYMin;
+  bool barrierActive = uBarrierX > 1.0 && hasAperture;
+  if (barrierActive) {
+    float barrierHalfWidth = 9.0;
+    bool inBarrier = abs(p.x - uBarrierX) <= barrierHalfWidth;
+    bool inAperture = p.y >= slitYMin && p.y <= slitYMax;
+    if (inBarrier && !inAperture) {
+      outColor = vec4(0.42, 0.45, 0.50, 1.0);
+      return;
+    }
+  }
+
+  float A = 0.0;
+  if (p.x < uBarrierX) {
+    A = cos(k * p.x - wt);
+  } else {
+    for (int i = 0; i < MAX_SOURCES; i++) {
+      if (i >= uSourceCount) {
+        break;
+      }
+      if (uSourceX[i] < uBarrierX) {
+        continue;
+      }
+      vec2 d = p - vec2(uSourceX[i], uSourceY[i]);
+      float r = length(d);
+      A += uAmplitude[i] * cos(k * r - wt + uPhase[i] + k * uBarrierX);
+    }
   }
 
   float scaled = clamp(abs(A) / max(uNormalization, 1e-4), 0.0, 1.0);
@@ -51,6 +83,29 @@ void main() {
     color = vec3(scaled, 0.0, 0.0);
   } else if (A < 0.0) {
     color = vec3(0.0, 0.0, scaled);
+  }
+
+  if (barrierActive) {
+    float slitWidth = slitYMax - slitYMin;
+    if (slitWidth > 1.0) {
+      float sinTheta = uWavelength / slitWidth;
+      if (sinTheta < 1.0 && p.x >= uBarrierX) {
+        float theta = asin(sinTheta);
+        float tanTheta = tan(theta);
+        float centerY = 0.5 * (slitYMin + slitYMax);
+        float dx = p.x - uBarrierX;
+        float yUpper = centerY - dx * tanTheta;
+        float yLower = centerY + dx * tanTheta;
+        float dUpper = abs(p.y - yUpper);
+        float dLower = abs(p.y - yLower);
+        float lineHalfWidth = 1.15;
+        float dashPhase = mod(dx, 13.0);
+
+        if (dashPhase < 8.0 && (dUpper <= lineHalfWidth || dLower <= lineHalfWidth)) {
+          color = vec3(1.0);
+        }
+      }
+    }
   }
 
   outColor = vec4(color, 1.0);
@@ -69,6 +124,7 @@ interface WebGLLocations {
   uAmplitude: WebGLUniformLocation;
   uPhase: WebGLUniformLocation;
   uNormalization: WebGLUniformLocation;
+  uBarrierX: WebGLUniformLocation;
 }
 
 interface WebGLState {
@@ -87,6 +143,7 @@ interface FieldRenderParams {
   time: number;
   wavelength: number;
   period: number;
+  barrierX: number;
 }
 
 function compileShader(
@@ -177,7 +234,8 @@ function createState(canvas: HTMLCanvasElement): WebGLState | null {
     uSourceY: uniform(gl, program, "uSourceY[0]"),
     uAmplitude: uniform(gl, program, "uAmplitude[0]"),
     uPhase: uniform(gl, program, "uPhase[0]"),
-    uNormalization: uniform(gl, program, "uNormalization")
+    uNormalization: uniform(gl, program, "uNormalization"),
+    uBarrierX: uniform(gl, program, "uBarrierX")
   };
 
   gl.clearColor(0, 0, 0, 1);
@@ -260,6 +318,7 @@ export const useWebGLField = (canvasRef: RefObject<HTMLCanvasElement>) => {
     gl.uniform1fv(locations.uAmplitude, amplitudes);
     gl.uniform1fv(locations.uPhase, phases);
     gl.uniform1f(locations.uNormalization, norm > 0 ? norm : 1);
+    gl.uniform1f(locations.uBarrierX, params.barrierX);
 
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }, []);

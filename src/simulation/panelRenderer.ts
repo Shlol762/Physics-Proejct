@@ -589,7 +589,8 @@ const drawDiffraction = (
   width: number,
   height: number,
   controls: SimulationControls,
-  time: number
+  time: number,
+  mode: RenderMode
 ): PanelFrameOutput => {
   const barrierX = Math.round(width * 0.32);
   const vPx = C_UM_PER_FS * PX_PER_UM;
@@ -640,7 +641,7 @@ const drawDiffraction = (
   ctx.stroke();
 
   const sources: WaveSource[] = [];
-  const perSlitSourceCount = Math.max(1, Math.floor(controls.slitWidth / controls.wavelength));
+  const perSlitSourceCount = Math.max(1, Math.round(controls.slitWidth * 8));
 
   const earliestEmissionTime = Math.max(0, time - maxRadius / Math.max(vPx, 1e-6));
   const firstEmissionIndex = Math.max(0, Math.ceil(earliestEmissionTime / Math.max(period, 1e-6)));
@@ -734,10 +735,11 @@ const drawDiffraction = (
       const upperY = centerY - dx * Math.tan(theta);
       const lowerY = centerY + dx * Math.tan(theta);
       const thetaDeg = (theta * 180 / Math.PI).toFixed(1);
+      const minimaColor = mode === "field" ? "#ffffff" : "#334155";
 
       ctx.save();
-      ctx.strokeStyle = "#7c3aed";
-      ctx.fillStyle = "#7c3aed";
+      ctx.strokeStyle = minimaColor;
+      ctx.fillStyle = minimaColor;
       ctx.lineWidth = 1.5;
       ctx.setLineDash([8, 5]);
 
@@ -762,6 +764,7 @@ const drawDiffraction = (
 
   return {
     sources,
+    barrierX,
     hudLines: [
       { label: "Slit count N", value: `${count}` },
       { label: "Sources/slit", value: `${perSlitSourceCount}` },
@@ -908,7 +911,7 @@ export const renderPanelFrame = (params: PanelRenderParams): PanelFrameOutput =>
   } else if (tab === "refraction") {
     output = drawBoundaryWave(ctx, width, height, controls, time, "refraction");
   } else if (tab === "diffraction") {
-    output = drawDiffraction(ctx, width, height, controls, time);
+    output = drawDiffraction(ctx, width, height, controls, time, mode);
   } else if (tab === "phasedArray") {
     output = drawPhasedArray(ctx, height, controls, time);
   } else {

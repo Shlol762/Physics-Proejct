@@ -119,7 +119,8 @@ export const SimulationCanvas = ({
           sources: frame.sources,
           time,
           wavelength: controls.wavelength * PX_PER_UM,
-          period: controls.wavelength / C_UM_PER_FS
+          period: controls.wavelength / C_UM_PER_FS,
+          barrierX: frame.barrierX ?? 0
         });
       } else {
         clearField();
