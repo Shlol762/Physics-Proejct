@@ -195,6 +195,26 @@ const drawBoundaryWave = (
     return `rgb(${channel}, ${channel}, ${channel})`;
   };
 
+  const drawLabelChip = (text: string, x: number, y: number, color: string): void => {
+    ctx.save();
+    ctx.font = '11px "IBM Plex Mono", monospace';
+    ctx.textAlign = "center";
+
+    const metrics = ctx.measureText(text);
+    const chipWidth = metrics.width + 10;
+    const chipHeight = 16;
+
+    ctx.fillStyle = "rgba(248, 250, 252, 0.88)";
+    ctx.strokeStyle = "rgba(100, 116, 139, 0.45)";
+    ctx.lineWidth = 1;
+    ctx.fillRect(x - chipWidth / 2, y - chipHeight + 3, chipWidth, chipHeight);
+    ctx.strokeRect(x - chipWidth / 2, y - chipHeight + 3, chipWidth, chipHeight);
+
+    ctx.fillStyle = color;
+    ctx.fillText(text, x, y);
+    ctx.restore();
+  };
+
   const drawArrow = (
     x0: number,
     y0: number,
@@ -202,7 +222,8 @@ const drawBoundaryWave = (
     y1: number,
     color: string,
     label: string,
-    dashed = false
+    dashed = false,
+    labelAnchor: "head" | "tail" = "head"
   ): void => {
     const dx = x1 - x0;
     const dy = y1 - y0;
@@ -233,8 +254,11 @@ const drawBoundaryWave = (
     ctx.closePath();
     ctx.fill();
 
-    ctx.font = '12px "IBM Plex Mono", monospace';
-    ctx.fillText(label, x1 + 8, y1 + (uy >= 0 ? 12 : -6));
+    const nx = -uy;
+    const ny = ux;
+    const baseX = labelAnchor === "tail" ? x0 + ux * 16 : x1 - ux * 10;
+    const baseY = labelAnchor === "tail" ? y0 + uy * 16 : y1 - uy * 10;
+    drawLabelChip(label, baseX + nx * 12, baseY + ny * 12, color);
     ctx.restore();
   };
 
@@ -270,9 +294,11 @@ const drawBoundaryWave = (
     anticlockwise: boolean,
     radius: number,
     color: string,
-    label: string
+    label: string,
+    labelRadius?: number
   ): void => {
     const midAngle = arcMidAngle(startAngle, endAngle, anticlockwise);
+    const labelR = labelRadius ?? radius + 18;
 
     ctx.save();
     ctx.strokeStyle = color;
@@ -280,11 +306,9 @@ const drawBoundaryWave = (
     ctx.beginPath();
     ctx.arc(cx, cy, radius, startAngle, endAngle, anticlockwise);
     ctx.stroke();
-
-    ctx.fillStyle = color;
-    ctx.font = '12px "IBM Plex Mono", monospace';
-    ctx.fillText(label, cx + Math.cos(midAngle) * (radius + 14) + 4, cy + Math.sin(midAngle) * (radius + 14));
     ctx.restore();
+
+    drawLabelChip(label, cx + Math.cos(midAngle) * labelR, cy + Math.sin(midAngle) * labelR, color);
   };
 
   const v1 = (C_UM_PER_FS / controls.n1) * PX_PER_UM;
@@ -325,9 +349,7 @@ const drawBoundaryWave = (
   ctx.stroke();
   ctx.setLineDash([]);
 
-  ctx.fillStyle = "#334155";
-  ctx.font = '12px "IBM Plex Mono", monospace';
-  ctx.fillText("Normal", cx + 8, cy - 74);
+  drawLabelChip("n̂", cx + 16, cy - 84, "#334155");
 
   const tc = 20;
   const currentT = time % 45;
@@ -426,7 +448,9 @@ const drawBoundaryWave = (
     cx,
     cy,
     "#2563eb",
-    "Incident"
+    "Incident",
+    false,
+    "tail"
   );
 
   if (type === "reflection" || tir) {
@@ -457,9 +481,10 @@ const drawBoundaryWave = (
     normalUpAngle,
     normalUpAngle - theta1,
     true,
-    46,
+    42,
     "#1d4ed8",
-    `theta_i = ${controls.thetaIncidence.toFixed(1)} deg`
+    `θᵢ = ${controls.thetaIncidence.toFixed(1)}°`,
+    68
   );
 
   if (type === "reflection" || tir) {
@@ -467,9 +492,10 @@ const drawBoundaryWave = (
       normalUpAngle,
       normalUpAngle + theta1,
       false,
-      46,
+      58,
       "#ea580c",
-      `theta_r = ${controls.thetaIncidence.toFixed(1)} deg`
+      `θᵣ = ${controls.thetaIncidence.toFixed(1)}°`,
+      84
     );
   }
 
@@ -478,9 +504,10 @@ const drawBoundaryWave = (
       normalDownAngle,
       normalDownAngle - theta2,
       true,
-      46,
+      52,
       "#047857",
-      `theta_t = ${theta2Deg.toFixed(1)} deg`
+      `θₜ = ${theta2Deg.toFixed(1)}°`,
+      76
     );
   }
 
