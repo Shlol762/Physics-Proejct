@@ -593,9 +593,11 @@ const drawDiffraction = (
 ): PanelFrameOutput => {
   const barrierX = Math.round(width * 0.32);
   const vPx = C_UM_PER_FS * PX_PER_UM;
+  const period = controls.wavelength / C_UM_PER_FS;
   const slitWidthPx = controls.slitWidth * PX_PER_UM;
   const count = 1;
   const centers = slitCenters(count, height / 2, 0);
+  const maxRadius = Math.hypot(width, height) + 30;
 
   const slits = centers
     .map((center) => ({ y0: center - slitWidthPx / 2, y1: center + slitWidthPx / 2 }))
@@ -630,66 +632,131 @@ const drawDiffraction = (
   ctx.font = FONT;
   ctx.fillText(`${controls.slitWidth.toFixed(2)} um`, barrierX - 110, labelY + slitWidthPx / 2 + 4);
 
-  const tc = 10;
-  const currentT = time % 30;
-  if (currentT < tc) {
-    const xInc = barrierX - 240 + (currentT / tc) * 240;
-    ctx.strokeStyle = "#2563eb";
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(xInc, 0);
-    ctx.lineTo(xInc, height);
-    ctx.stroke();
-  } else {
-    ctx.strokeStyle = "rgba(37, 99, 235, 0.35)";
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(barrierX - barrierW / 2, 0);
-    ctx.lineTo(barrierX - barrierW / 2, height);
-    ctx.stroke();
-  }
+  ctx.strokeStyle = "rgba(37, 99, 235, 0.35)";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(barrierX - barrierW / 2, 0);
+  ctx.lineTo(barrierX - barrierW / 2, height);
+  ctx.stroke();
 
   const sources: WaveSource[] = [];
   const perSlitSourceCount = Math.max(1, Math.floor(controls.slitWidth / controls.wavelength));
 
-  if (currentT >= tc) {
-    const radius = (currentT - tc) * vPx;
-    ctx.strokeStyle = "#db2777";
-    ctx.lineWidth = 1;
+  const earliestEmissionTime = Math.max(0, time - maxRadius / Math.max(vPx, 1e-6));
+  const firstEmissionIndex = Math.max(0, Math.ceil(earliestEmissionTime / Math.max(period, 1e-6)));
+  const lastEmissionIndex = Math.max(0, Math.floor(time / Math.max(period, 1e-6)));
 
-    for (const slit of slits) {
-      for (let i = 0; i < perSlitSourceCount; i += 1) {
-        const t = perSlitSourceCount === 1 ? 0.5 : i / (perSlitSourceCount - 1);
-        const y = slit.y0 + t * (slit.y1 - slit.y0);
+  ctx.lineWidth = 1;
 
-        sources.push({
-          x: barrierX,
-          y,
-          amplitude: 1 / (count * perSlitSourceCount),
-          phase: 0
-        });
+  for (const slit of slits) {
+    for (let i = 0; i < perSlitSourceCount; i += 1) {
+      const t = perSlitSourceCount === 1 ? 0.5 : i / (perSlitSourceCount - 1);
+      const y = slit.y0 + t * (slit.y1 - slit.y0);
 
+      sources.push({
+        x: barrierX,
+        y,
+        amplitude: 1 / (count * perSlitSourceCount),
+        phase: 0
+      });
+
+      for (let emissionIndex = firstEmissionIndex; emissionIndex <= lastEmissionIndex; emissionIndex += 1) {
+        const emissionTime = emissionIndex * period;
+        const radius = (time - emissionTime) * vPx;
+        if (radius <= 0 || radius > maxRadius) {
+          continue;
+        }
+
+        const edgeFade = Math.max(0, Math.min(1, (maxRadius - radius) / Math.max(maxRadius, 1e-6)));
+        if (edgeFade <= 0.01) {
+          continue;
+        }
+
+        ctx.save();
+        ctx.globalAlpha = edgeFade;
+        ctx.strokeStyle = "#db2777";
         ctx.beginPath();
         ctx.arc(barrierX, y, radius, -Math.PI / 2, Math.PI / 2);
         ctx.stroke();
-
-        ctx.fillStyle = "#f59e0b";
-        ctx.beginPath();
-        ctx.arc(barrierX, y, 3, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.restore();
       }
-    }
 
-    if (slits.length > 0) {
-      const top = slits[0].y0;
-      const bottom = slits[slits.length - 1].y1;
+      ctx.fillStyle = "#f59e0b";
+      ctx.beginPath();
+      ctx.arc(barrierX, y, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  if (slits.length > 0 && perSlitSourceCount > 1) {
+    const top = slits[0].y0;
+    const bottom = slits[slits.length - 1].y1;
+
+    for (let emissionIndex = firstEmissionIndex; emissionIndex <= lastEmissionIndex; emissionIndex += 1) {
+      const emissionTime = emissionIndex * period;
+      const radius = (time - emissionTime) * vPx;
+      if (radius <= 0 || radius > maxRadius) {
+        continue;
+      }
+
+      const edgeFade = Math.max(0, Math.min(1, (maxRadius - radius) / Math.max(maxRadius, 1e-6)));
+      if (edgeFade <= 0.01) {
+        continue;
+      }
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(barrierX, 0, width - barrierX, height);
+      ctx.clip();
+
+      ctx.globalAlpha = edgeFade;
       ctx.strokeStyle = "#15803d";
       ctx.lineWidth = 2.5;
+
       ctx.beginPath();
-      ctx.arc(barrierX, top, radius, -Math.PI / 2, 0);
+      ctx.moveTo(barrierX + radius, top);
       ctx.lineTo(barrierX + radius, bottom);
-      ctx.arc(barrierX, bottom, radius, 0, Math.PI / 2);
+      ctx.moveTo(barrierX + radius, top);
+      ctx.arc(barrierX, top, radius, 0, -Math.PI / 2, true);
+      ctx.moveTo(barrierX + radius, bottom);
+      ctx.arc(barrierX, bottom, radius, 0, Math.PI / 2, false);
       ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  if (perSlitSourceCount > 1) {
+    const sinTheta = controls.wavelength / controls.slitWidth;
+    if (sinTheta < 1) {
+      const theta = Math.asin(sinTheta);
+      const dx = width - barrierX;
+      const centerY = height / 2;
+      const upperY = centerY - dx * Math.tan(theta);
+      const lowerY = centerY + dx * Math.tan(theta);
+      const thetaDeg = (theta * 180 / Math.PI).toFixed(1);
+
+      ctx.save();
+      ctx.strokeStyle = "#7c3aed";
+      ctx.fillStyle = "#7c3aed";
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([8, 5]);
+
+      ctx.beginPath();
+      ctx.moveTo(barrierX, centerY);
+      ctx.lineTo(width, upperY);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(barrierX, centerY);
+      ctx.lineTo(width, lowerY);
+      ctx.stroke();
+
+      ctx.setLineDash([]);
+      ctx.font = '12px "IBM Plex Mono", monospace';
+      ctx.textAlign = "right";
+      ctx.fillText(`θ₁ = ${thetaDeg}°`, width - 8, upperY - 6);
+      ctx.fillText(`θ₁ = ${thetaDeg}°`, width - 8, lowerY + 14);
+      ctx.restore();
     }
   }
 
