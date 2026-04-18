@@ -3,107 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Huygens Light Wave Simulator</title>
+    <title>Huygens Principle Simulator</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="/src/styles.css" />
   </head>
   <body>
-    <div id="app">
-      <aside id="left-sidebar" class="sidebar">
-        <header class="title-block">
-          <h1>Huygens Light Lab</h1>
-          <p>Scaled light speed in simulation space: 3 m/s</p>
-        </header>
-
-        <nav id="panel-tabs" class="tabs" aria-label="Panel navigation">
-          <button data-panel="introduction" class="tab active">Introduction</button>
-          <button data-panel="reflection_refraction" class="tab">Reflection / Refraction</button>
-          <button data-panel="diffraction" class="tab">Diffraction</button>
-          <button data-panel="phased_array" class="tab">Phased Array</button>
-          <button data-panel="sandbox" class="tab">Sandbox</button>
-        </nav>
-
-        <section class="card">
-          <h2>Rendering Mode</h2>
-          <div class="mode-switch">
-            <label>
-              <input type="radio" name="render-mode" value="huygens" checked />
-              Huygens
-            </label>
-            <label>
-              <input type="radio" name="render-mode" value="field" />
-              Field
-            </label>
-          </div>
-        </section>
-
-        <section id="global-controls" class="card">
-          <h2>Global Controls</h2>
-        </section>
-
-        <section id="panel-controls" class="card">
-          <h2>Panel Controls</h2>
-        </section>
-
-        <section id="sandbox-palette" class="card hidden">
-          <h2>Sandbox Palette</h2>
-          <div class="palette-columns">
-            <div>
-              <h3>Sources</h3>
-              <button data-tool="source-point" class="tool-button">Point Source</button>
-              <button data-tool="source-line" class="tool-button">Line Source</button>
-              <button data-tool="source-plane" class="tool-button">Plane Wave Source</button>
-              <button data-tool="source-aperture" class="tool-button">Aperture Source</button>
-            </div>
-            <div>
-              <h3>Elements</h3>
-              <button data-tool="element-flat-mirror" class="tool-button">Flat Mirror</button>
-              <button data-tool="element-curved-mirror" class="tool-button">Curved Mirror</button>
-              <button data-tool="element-converging-lens" class="tool-button">Converging Lens</button>
-              <button data-tool="element-diverging-lens" class="tool-button">Diverging Lens</button>
-              <button data-tool="element-wall" class="tool-button">Opaque Wall</button>
-              <button data-tool="element-slit-barrier" class="tool-button">Slit Barrier</button>
-              <button data-tool="element-dielectric" class="tool-button">Dielectric Slab</button>
-            </div>
-          </div>
-          <button id="sandbox-tool-clear" class="tool-button subtle">Clear Tool</button>
-        </section>
-      </aside>
-
-      <main id="viewport">
-        <div id="canvas-stack">
-          <canvas id="mode2-canvas"></canvas>
-          <canvas id="mode1-canvas"></canvas>
-          <canvas id="axes-canvas"></canvas>
-          <canvas id="intensity-canvas"></canvas>
-        </div>
-      </main>
-
-      <aside id="right-sidebar" class="sidebar">
-        <section class="card">
-          <h2>HUD</h2>
-          <div class="hud-row"><span>Panel</span><strong id="hud-panel-name">Introduction</strong></div>
-          <div class="hud-row"><span>Axis Unit</span><strong id="hud-axis-unit">m</strong></div>
-          <div class="hud-row"><span>Simulation Time</span><strong id="hud-time">0.00 s</strong></div>
-          <div class="hud-row"><span>Viewport Distance</span><strong id="hud-viewport-distance">0.00 m</strong></div>
-          <div id="hud-dynamic"></div>
-          <p id="hud-warning" class="warning hidden"></p>
-        </section>
-
-        <section id="sandbox-inspector" class="card hidden">
-          <h2>Inspector</h2>
-          <p id="inspector-empty">Select an object in the canvas.</p>
-          <div id="inspector-fields"></div>
-          <button id="inspector-delete" class="tool-button danger hidden">Delete Selected</button>
-        </section>
-      </aside>
-    </div>
-
-    <script type="module" src="/src/main.ts"></script>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
