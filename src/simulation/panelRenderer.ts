@@ -188,6 +188,13 @@ const drawBoundaryWave = (
   time: number,
   type: "reflection" | "refraction"
 ): PanelFrameOutput => {
+  const mediumShadeFromIndex = (n: number): string => {
+    const clamped = Math.max(1, Math.min(3, n));
+    const t = (clamped - 1) / 2;
+    const channel = Math.round(255 - t * (255 - 128));
+    return `rgb(${channel}, ${channel}, ${channel})`;
+  };
+
   const drawArrow = (
     x0: number,
     y0: number,
@@ -237,13 +244,58 @@ const drawBoundaryWave = (
   const sinT2 = (controls.n1 / controls.n2) * Math.sin(theta1);
   const tir = type === "refraction" && Math.abs(sinT2) >= 1;
   const theta2 = type === "refraction" && !tir ? Math.asin(sinT2) : null;
+  const theta2Deg = theta2 === null ? null : (theta2 * 180) / Math.PI;
+
+  const normalizeAngle = (angle: number): number => {
+    let normalized = angle % TWO_PI;
+    if (normalized < 0) {
+      normalized += TWO_PI;
+    }
+    return normalized;
+  };
+
+  const arcMidAngle = (startAngle: number, endAngle: number, anticlockwise: boolean): number => {
+    const start = normalizeAngle(startAngle);
+    const end = normalizeAngle(endAngle);
+    let span = anticlockwise ? start - end : end - start;
+    if (span < 0) {
+      span += TWO_PI;
+    }
+    return normalizeAngle(anticlockwise ? start - span / 2 : start + span / 2);
+  };
+
+  const drawAngleMarker = (
+    startAngle: number,
+    endAngle: number,
+    anticlockwise: boolean,
+    radius: number,
+    color: string,
+    label: string
+  ): void => {
+    const midAngle = arcMidAngle(startAngle, endAngle, anticlockwise);
+
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, startAngle, endAngle, anticlockwise);
+    ctx.stroke();
+
+    ctx.fillStyle = color;
+    ctx.font = '12px "IBM Plex Mono", monospace';
+    ctx.fillText(label, cx + Math.cos(midAngle) * (radius + 14) + 4, cy + Math.sin(midAngle) * (radius + 14));
+    ctx.restore();
+  };
 
   const v1 = (C_UM_PER_FS / controls.n1) * PX_PER_UM;
   const v2 = (C_UM_PER_FS / (type === "reflection" ? controls.n1 : controls.n2)) * PX_PER_UM;
 
-  ctx.fillStyle = "#f8fafc";
+  const medium1Shade = type === "refraction" ? mediumShadeFromIndex(controls.n1) : "#f8fafc";
+  const medium2Shade = type === "refraction" ? mediumShadeFromIndex(controls.n2) : "#f8fafc";
+
+  ctx.fillStyle = medium1Shade;
   ctx.fillRect(0, 0, width, cy);
-  ctx.fillStyle = type === "reflection" ? "#f8fafc" : "#e2e8f0";
+  ctx.fillStyle = medium2Shade;
   ctx.fillRect(0, cy, width, height - cy);
 
   drawGrid(ctx, width, height);
@@ -272,6 +324,10 @@ const drawBoundaryWave = (
   ctx.lineTo(cx, height);
   ctx.stroke();
   ctx.setLineDash([]);
+
+  ctx.fillStyle = "#334155";
+  ctx.font = '12px "IBM Plex Mono", monospace';
+  ctx.fillText("Normal", cx + 8, cy - 74);
 
   const tc = 20;
   const currentT = time % 45;
@@ -394,8 +450,39 @@ const drawBoundaryWave = (
       "Refracted"
     );
   }
-        value: type === "reflection" ? "Incident + Reflected" : theta2 === null ? "Incident + Reflected (TIR)" : "Incident + Refracted"
-  const theta2Deg = theta2 === null ? null : (theta2 * 180) / Math.PI;
+
+  const normalUpAngle = -Math.PI / 2;
+  const normalDownAngle = Math.PI / 2;
+  drawAngleMarker(
+    normalUpAngle,
+    normalUpAngle - theta1,
+    true,
+    46,
+    "#1d4ed8",
+    `theta_i = ${controls.thetaIncidence.toFixed(1)} deg`
+  );
+
+  if (type === "reflection" || tir) {
+    drawAngleMarker(
+      normalUpAngle,
+      normalUpAngle + theta1,
+      false,
+      46,
+      "#ea580c",
+      `theta_r = ${controls.thetaIncidence.toFixed(1)} deg`
+    );
+  }
+
+  if (type === "refraction" && theta2 !== null && theta2Deg !== null) {
+    drawAngleMarker(
+      normalDownAngle,
+      normalDownAngle - theta2,
+      true,
+      46,
+      "#047857",
+      `theta_t = ${theta2Deg.toFixed(1)} deg`
+    );
+  }
 
   return {
     sources: [],
@@ -407,7 +494,7 @@ const drawBoundaryWave = (
       },
       {
         label: "Rays",
-        value: type === "reflection" ? "Incident + Reflected" : theta2 === null ? "Incident + Reflected (TIR)" : "Incident + Reflected + Refracted"
+        value: type === "reflection" ? "Incident + Reflected" : theta2 === null ? "Incident + Reflected (TIR)" : "Incident + Refracted"
       }
     ],
     warning: tir ? "Total internal reflection: no transmitted real angle." : undefined
