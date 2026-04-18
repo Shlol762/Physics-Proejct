@@ -1,6 +1,8 @@
 # Huygens Principle Simulator (Physics Project T8G01)
 
-This is our group project. We built an interactive wave optics simulator in React + TypeScript to make Huygens' principle easier to understand visually.
+This is our physicss group project. We built an interactive wave optics simulator in React + TypeScript to make Huygens' principle easier to understand visually.
+
+Authors: Jash Sashdev; Rohan Khandelwal; Akul Srivastava; Shlok Katla
 
 #### Click [here](https://shlol762.github.io/Physics-Proejct/) to experience the simulator.
 
