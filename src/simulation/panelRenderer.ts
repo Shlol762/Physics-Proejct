@@ -372,15 +372,17 @@ const drawBoundaryWave = (
     "#2563eb",
     "Incident"
   );
-  drawArrow(
-    cx,
-    cy,
-    cx + reflectedDir.x * rayLength,
-    cy + reflectedDir.y * rayLength,
-    "#f97316",
-    "Reflected",
-    type === "refraction"
-  );
+
+  if (type === "reflection" || tir) {
+    drawArrow(
+      cx,
+      cy,
+      cx + reflectedDir.x * rayLength,
+      cy + reflectedDir.y * rayLength,
+      "#f97316",
+      "Reflected"
+    );
+  }
 
   if (type === "refraction" && theta2 !== null) {
     drawArrow(
@@ -392,7 +394,7 @@ const drawBoundaryWave = (
       "Refracted"
     );
   }
-
+        value: type === "reflection" ? "Incident + Reflected" : theta2 === null ? "Incident + Reflected (TIR)" : "Incident + Refracted"
   const theta2Deg = theta2 === null ? null : (theta2 * 180) / Math.PI;
 
   return {
